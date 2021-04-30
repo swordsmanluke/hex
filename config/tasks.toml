@@ -1,0 +1,149 @@
+#######
+# Tasks definition
+# A task has the following definitions
+#   id: A unique identifier for this task, so you can refer back to it in [[windows]]
+#   name: A short human-readable identifier for the task
+#   description: A short human-readable description of the task
+#   path: The path to run the command in - Ex: "/home/lucas/Software/dark_goggles-0.1/bin"
+#   command: The command to run. Ex: "./dark_goggles hourly"
+#   period: The time between refreshes. Expects a digit plus an optional unit character.
+#           Ex: "10m" for ten minutes. Defaults to seconds if no unit provided
+
+[[tasks]]
+    id = "forecast_d"
+    name = "Daily Forecast"
+    description = "See the daily forecast for the week"
+    path = "/home/lucas/Software/dark_goggles-0.1/bin/"
+    command = "dark_goggles daily"
+    period = "1h"
+
+[[tasks]]
+    id = "forecast_h"
+    name = "Hourly Forecast"
+    description = "See the forecast for the next 8 hours"
+    path = "/home/lucas/Software/dark_goggles-0.1/bin"
+    command = "dark_goggles hourly"
+    period = "1m"
+
+[[tasks]]
+    id = "time"
+    name = "Date and Time"
+    description = "See the current date and time"
+    path = "/bin"
+    command = "./date"
+    period = "1s"
+
+[[tasks]]
+    id = "todo"
+    name = "Todo and Calendar"
+    description = "See upcoming todo list items"
+    path = "/home/lucas/workspace/wearable_hud/todor"
+    command = "./run"
+    period = "1m"
+
+[[tasks]]
+    id = "vim"
+    name = "Runs Vim"
+    description = "Run the world's best text editor"
+    path = "/usr/bin"
+    command = "./vim"
+
+[[tasks]]
+    id = "mem-free"
+    name = "Memory Utilization"
+    description = "See memory use"
+    path = "/home/lucas/workspace/wearable_hud/bar"
+    command = "./mem"
+    period = "5m"
+
+[[tasks]]
+    id = "cpu-use"
+    name = "CPU Utilization"
+    description = "See CPU load"
+    path = "/home/lucas/workspace/wearable_hud/bar"
+    command = "./cpu"
+    period = "10s"
+
+#######
+# Layout Definition
+#
+# Uses 'linearlayout' containers to hold 'textview's.
+# Top level is always [layout], which (usually) has kind = "linearlayout" and [[layout.children]] keys.
+#
+# children have the following definition
+#   type: (linearlayout|textview)
+#   width: a fixed width in characters. If omitted, will be balanced with other items in container
+#   height: a fixed height in characters.           "
+#
+# linearlayout also defines these keys
+#   orientation: (vertical|horizontal) - which way does the layout flow?
+#
+# textview also defines these keys
+#   task_id: Which task should be displayed in this window?
+#
+# ex:
+# [layout]
+#   kind = "linearlayout"
+#   orientation = "horizontal"
+#   [[layout.children]]
+#       type = "linearlayout"
+#       orientation = "vertical"
+#       [[children]]
+#           type = "textview"
+#           task_id = "some_task"
+#           width = 25
+#       [[children]]
+#           type = "textview"
+#           task_id = "another_task"
+######
+
+# Current layout design:
+#
+#  Weather | Time | Hourly Weather
+#  -----------------------------
+#  | Mem |  TODO/Calendar
+#  | CPU |
+[layout]
+    # main container
+    kind = "linearlayout"
+    orientation = "vertical"
+    [[layout.children]]
+        # top bar
+        kind = "linearlayout"
+        orientation = "horizontal"
+        height = 2
+        [[layout.children.children]]
+            kind = "textview"
+            task_id = "forecast_d"
+            width = 17
+        [[layout.children.children]]
+            kind = "textview"
+            task_id = "time"
+            width = 28
+        [[layout.children.children]]
+            kind = "textview"
+            task_id = "forecast_h"
+            width = 22
+    [[layout.children]]
+        # main window
+        kind = "linearlayout"
+        orientation = "horizontal"
+        [[layout.children.children]]
+            # stats bar
+            kind = "linearlayout"
+            orientation = "vertical"
+            width = 4
+            [[layout.children.children.children]]
+                kind = "textview"
+                task_id = "mem-free"
+                 height = 11
+            [[layout.children.children.children]]
+                kind = "textview"
+                task_id = "cpu-use"
+                height = 12
+        [[layout.children.children]]
+            # Todo list
+            kind = "textview"
+            task_id = "vim"
+            main = true
+            height = 15
