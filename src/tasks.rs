@@ -3,7 +3,7 @@ use std::io::Read;
 use std::fmt;
 use serde::Deserialize;
 use std::ops::Deref;
-use serde::export::Formatter;
+use fmt::Formatter;
 
 #[derive(Deserialize, Clone)]
 pub struct Config {

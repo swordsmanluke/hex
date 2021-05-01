@@ -1,54 +1,34 @@
 use std::collections::HashMap;
 use std::process::{Command, Output};
 use std::str;
-use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc::Sender;
 use std::thread;
 use std::thread::{JoinHandle, sleep};
+use std::time::{Duration, SystemTime};
+
+use log::{info, trace, warn};
 
 use crate::executable_command::ExecutableCommand;
 use crate::tasks::Task;
-use std::time::{SystemTime, Duration};
-use log::{trace, info, warn};
 
 pub struct TaskRunner {
     pub commands: Vec<ExecutableCommand>,
     system_command_sender: Sender<HashMap<String, String>>,
-    run_task_receiver: Receiver<String>,
     running: bool,
 }
 
 impl TaskRunner {
     pub fn new(tasks: Vec<Task>,
-               system_command_sender: Sender<HashMap<String, String>>,
-               run_task_receiver: Receiver<String>) -> TaskRunner {
+               output_tx: Sender<HashMap<String, String>>) -> TaskRunner {
         let commands = tasks.iter().
             map(|t| task_to_command(t)).
             collect();
 
-        TaskRunner { commands, system_command_sender, run_task_receiver, running: true }
+        TaskRunner { commands, system_command_sender: output_tx, running: true }
     }
 
-    pub fn run(&mut self) {
-        let handles: Vec<JoinHandle<()>> = self.commands.iter().map(|cmd|
-            self.run_task_loop(&cmd)
-        ).collect();
-
-        while self.running {
-            match self.run_task_receiver.recv() {
-                Ok(command) => {
-                    let task_id = command.
-                        split_whitespace().
-                        next().
-                        unwrap_or("").
-                        to_string();
-
-                    self.run_command(task_id, command);
-                }
-                Err(_) => {}
-            }
-        }
-
-        for h in handles { h.join().unwrap_or_else(|_| {}); }
+    pub fn start(&mut self) {
+        self.commands.iter().for_each(|cmd| self.start_task_loop(&cmd) );
     }
 
     pub fn run_command(&self, task_id: String, command: String) {
@@ -66,7 +46,7 @@ impl TaskRunner {
         }
     }
 
-    fn run_task_loop(&self, command: &ExecutableCommand) -> JoinHandle<()> {
+    fn start_task_loop(&self, command: &ExecutableCommand) {
         let trx = self.system_command_sender.clone();
         let cmd = command.clone();
         info!("spawn {} thread", cmd.id);
@@ -86,7 +66,7 @@ impl TaskRunner {
                     trace!("{} sleeping for {}ms", cmd.id, nap_millis);
                     sleep(naptime);
                 }
-            }).unwrap()
+            }).unwrap();
     }
 
     fn run_task_once(&self, command: &ExecutableCommand) -> () {

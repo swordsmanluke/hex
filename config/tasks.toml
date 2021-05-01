@@ -42,13 +42,6 @@
     period = "1m"
 
 [[tasks]]
-    id = "vim"
-    name = "Runs Vim"
-    description = "Run the world's best text editor"
-    path = "/usr/bin"
-    command = "./vim"
-
-[[tasks]]
     id = "mem-free"
     name = "Memory Utilization"
     description = "See memory use"
@@ -144,6 +137,6 @@
         [[layout.children.children]]
             # Todo list
             kind = "textview"
-            task_id = "vim"
+            task_id = "todo"
             main = true
             height = 15

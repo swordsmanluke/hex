@@ -7,8 +7,11 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.36" # Simplify/Clarify error-handling
-portable-pty = "0.4.0" # PTY Pseudo-Terminal support
+# Terminal control
+termion = "1"
+portable-pty = "0.4.0"
+# Simplify/Clarify error-handling
+anyhow = "1.0.36"
 # Regex for parsing terminal output
 regex = "1"
 # Logging

@@ -1,4 +1,4 @@
-use crate::widgets::{LinearLayout, Orientation, View, Dim, Dimensions, desired_size, CharDims};
+use crate::views::{LinearLayout, Orientation, View, Dim, Dimensions, desired_size, CharDims};
 use std::cmp::{min, max};
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -154,7 +154,7 @@ impl View for LinearLayout {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::widgets::TextView;
+    use crate::views::TextView;
 
     fn fixed_size_text_widget() -> TextView {
         let mut tw = TextView::new(Dim::Fixed(10), Dim::Fixed(2));

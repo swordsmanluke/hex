@@ -1,4 +1,4 @@
-use crate::widgets::{View, TextView, Dim, Dimensions, desired_size, Vt100Formatter, CharDims};
+use crate::views::{View, TextView, Dim, Dimensions, desired_size, Vt100Formatter, CharDims};
 use std::cmp::min;
 
 impl TextView {

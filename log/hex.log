@@ -1,0 +1,39 @@
+23:09:47 [ INFO] spawn forecast_d thread
+23:09:47 [ INFO] Running /home/lucas/Software/dark_goggles-0.1/bin//dark_goggles daily
+23:09:47 [ INFO] spawn forecast_h thread
+23:09:47 [ INFO] Running /home/lucas/Software/dark_goggles-0.1/bin/dark_goggles hourly
+23:09:47 [ INFO] spawn time thread
+23:09:47 [ INFO] Running /bin/./date 
+23:09:47 [ INFO] spawn todo thread
+23:09:47 [ INFO] Running /home/lucas/workspace/wearable_hud/todor/./run 
+23:09:47 [ INFO] spawn mem-free thread
+23:09:47 [ INFO] Running /home/lucas/workspace/wearable_hud/bar/./mem 
+23:09:47 [ INFO] spawn cpu-use thread
+23:09:47 [ INFO] Running /home/lucas/workspace/wearable_hud/bar/./cpu 
+23:09:47 [ INFO] time ran for 20.82ms
+23:09:48 [ INFO] mem-free ran for 264.86ms
+23:09:48 [ INFO] Running /bin/./date 
+23:09:48 [ INFO] time ran for 1.25ms
+23:09:49 [ INFO] cpu-use ran for 1.07s
+23:09:49 [ INFO] Running /bin/./date 
+23:09:49 [ INFO] time ran for 1.10ms
+23:09:50 [ INFO] Running /bin/./date 
+23:09:50 [ INFO] time ran for 1.07ms
+23:09:51 [ INFO] forecast_d ran for 3.19s
+23:09:51 [ INFO] forecast_h ran for 3.19s
+23:09:51 [ INFO] todo ran for 3.78s
+23:09:51 [ INFO] Running /bin/./date 
+23:09:51 [ INFO] time ran for 1.16ms
+23:09:52 [ INFO] Running /bin/./date 
+23:09:52 [ INFO] time ran for 1.11ms
+23:09:53 [ INFO] Running /bin/./date 
+23:09:53 [ INFO] time ran for 1.21ms
+23:09:54 [ INFO] Running /bin/./date 
+23:09:54 [ INFO] time ran for 1.15ms
+23:09:55 [ INFO] Running /bin/./date 
+23:09:55 [ INFO] time ran for 1.20ms
+23:09:56 [ INFO] Running /bin/./date 
+23:09:56 [ INFO] time ran for 1.15ms
+23:09:57 [ INFO] Running /home/lucas/workspace/wearable_hud/bar/./cpu 
+23:09:57 [ INFO] Running /bin/./date 
+23:09:57 [ INFO] time ran for 1.05ms

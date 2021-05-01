@@ -133,7 +133,7 @@ pub enum Orientation {
 }
 
 /***
-LinearLayout: Prints child View widgets' contents, stacked horizontally or vertically.
+LinearLayout: Prints child View views' contents, stacked horizontally or vertically.
  */
 pub struct LinearLayout {
     orientation: Orientation,
