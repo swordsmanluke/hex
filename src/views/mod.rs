@@ -2,14 +2,14 @@ use std::cmp::{Ordering, min};
 use std::rc::Rc;
 use std::cell::RefCell;
 use regex::{Match, Regex};
+use crate::hexterm::formatting::TaskText;
+use crate::tasks::Layout;
+use log::{trace, info};
+use crate::terminal::{WindowMap, RcView};
+use std::slice::IterMut;
 
 mod linear_layout;
 mod text_view;
-
-fn find_vt100s(s: &str) -> Vec<Match> {
-    let vt100_regex = Regex::new(r"((\u001b\[|\u009b)[\u0030-\u003f]*[\u0020-\u002f]*[\u0040-\u007e])+").unwrap();
-    vt100_regex.find_iter(s).collect()
-}
 
 /***
 Dim: Represents a constraint on layout.
@@ -50,77 +50,27 @@ impl Ord for Dim {
 View: A trait representing a render-able text widget.
  */
 pub trait View {
+    fn id(&self) -> ViewId;
     fn inflate(&mut self, parent_size: &CharDims) -> CharDims;
     fn constraints(&self) -> (Dim, Dim);
     fn width(&self) -> usize;
     fn height(&self) -> usize;
     fn render(&self) -> String;
     fn render_lines(&self) -> Vec<String>;
+    fn children(&mut self) -> IterMut<Box<dyn View>>;
+    fn replace_content(&mut self, text: String);
 }
 
 /***
-TextView: A simple text container. Throw a String at it.
+TextView: A simple text container. The only thing that _displays_ stuff.
  */
+pub type ViewId = String;
 pub struct TextView {
-    raw_text: String,
+    id: ViewId,
     dims: Dimensions,
-    formatter: Box<dyn TextFormatter>,
-    visible: bool
-}
-
-/***
-TextFormatter: A trait for classes that convert from a raw string into a formatted one.
-    Generic in order to allow different Terminal backends to use their own custom
-    String-variants.
- */
-pub trait TextFormatter {
-    fn format(&self, s: String, max_len: usize) -> String;
-}
-
-struct DumbFormatter{}
-
-impl TextFormatter for DumbFormatter {
-    fn format(&self, s: String, n: usize) -> String {
-        let last_len = min(n, s.len());
-        s[0..last_len].to_string()
-    }
-}
-
-struct Vt100Formatter{}
-
-impl TextFormatter for Vt100Formatter {
-    fn format(&self, s: String, n: usize) -> String {
-        if n >= s.len() { return format!("{:width$}", s, width = n) }
-
-        let vt100s = find_vt100s(s.as_str());
-        if vt100s.last().is_none() { return s[0..n].to_string(); }
-        let mut captured_chars = 0;
-        let mut end = 0;
-
-        for c in vt100s.iter() {
-            if (captured_chars + 1) < n {  // cc+1 to avoid subtraction with overflow
-                let next_block_of_text_size = c.start() - end;
-                let next_incr = if captured_chars + next_block_of_text_size >= n {
-                    (captured_chars + next_block_of_text_size) - n
-                } else {
-                    next_block_of_text_size
-                };
-
-                captured_chars += next_incr;
-                end = c.end();
-            }
-        };
-
-        if captured_chars < n {
-            end += n - captured_chars; // grab any remaining characters we need
-        }
-
-        // info!("Str {} chars\n----\n{}\n----", s.len(), s);
-        // info!("Slice:\n-----\n{}\n------", s[0..end].to_string());
-
-        let slice_end = min(s.len(), end);
-        format!("{:width$}", s[0..slice_end].to_string(), width = end) // TODO: Width = max width? To erase previous text?
-    }
+    visible: bool,
+    text: String,
+    empty_children: Vec<Box<dyn View>> //Just for an empty list we can return.
 }
 
 /***
@@ -136,8 +86,9 @@ pub enum Orientation {
 LinearLayout: Prints child View views' contents, stacked horizontally or vertically.
  */
 pub struct LinearLayout {
+    id: ViewId,
     orientation: Orientation,
-    children: Vec<Rc<RefCell<dyn View>>>,
+    children: Vec<Box<dyn View>>,
     dims: Dimensions,
     visible: bool
 }
@@ -183,12 +134,5 @@ mod tests {
         assert!(Dim::Fixed(1).to_ord() == Dim::UpTo(1).to_ord());
         assert!(Dim::Fixed(1) < Dim::UpTo(2));
         assert!(Dim::Fixed(1000) < Dim::WrapContent);
-    }
-
-    #[test]
-    fn slicing_vt100_string_works() {
-        let fmt = Vt100Formatter{};
-        let fmt_str = fmt.format(VT100_TEST.to_string(), 2);
-        assert_eq!("T\u{1B}[33mE", fmt_str);
     }
 }

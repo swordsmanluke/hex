@@ -1,11 +1,11 @@
-use crate::hexterm::{HexTerm, Channel};
+use crate::hexterm::HexTerm;
 use crate::tasks::Config;
 use crate::runner::TaskRunner;
 use std::sync::mpsc;
-use std::fmt::format;
 use portable_pty::{CommandBuilder, native_pty_system, PtySize};
 use log::{trace, info, warn, error};
 use std::collections::HashMap;
+use crate::terminal::Terminal;
 
 impl HexTerm {
     pub fn new(config: Config) -> HexTerm {
@@ -15,8 +15,9 @@ impl HexTerm {
         let layout = config.layout;
 
         let runner = TaskRunner::new(tasks, output_tx);
+        let terminal = Terminal::new(&layout);
 
-        return HexTerm { runner, layout, output_rx }
+        return HexTerm { runner, terminal, output_rx }
     }
 
     pub fn run(&mut self) {
@@ -29,16 +30,10 @@ impl HexTerm {
 
         loop {
             match self.output_rx.recv() {
-                Ok(out) => { self.handle_output(out) },
-                Err(e) => { error!("Error receiving from task runner: {}", e) }
+                Ok(out) => { self.terminal.update(out); },
+                Err(e) => { error!("Error receiving from task runner: {}", e); }
             }
         }
-    }
-
-    fn handle_output(&self, out: HashMap<String, String>) {
-        out.iter().for_each(|(task_id, output)|
-            println!("{}:\n{}\n*********", task_id, output)
-        );
     }
 
     fn start_pty(&mut self, command: &str) {

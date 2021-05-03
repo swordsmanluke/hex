@@ -3,26 +3,15 @@ use std::sync::mpsc::{Receiver, Sender};
 
 use crate::runner::TaskRunner;
 use crate::tasks::Layout;
+use crate::terminal::Terminal;
 
 mod hexterm;
+pub(crate) mod formatting;
 
+pub type TaskId = String;
 pub struct HexTerm {
+
     runner: TaskRunner,
-    layout: Layout,
-    output_rx: Receiver<HashMap<String, String>>,
+    terminal: Terminal,
+    output_rx: Receiver<HashMap<TaskId, String>>,
 }
-
-pub struct Channel<T> {
-    pub tx: Sender<T>,
-    pub rx: Receiver<T>
-}
-
-impl<T> Channel<T> {
-    pub fn new(tx: Sender<T>, rx: Receiver<T>) -> Channel<T> {
-        Channel { tx, rx }
-    }
-    pub fn from(tuple: (Sender<T>, Receiver<T>)) -> Channel<T> {
-        Channel::new(tuple.0, tuple.1)
-    }
-}
-

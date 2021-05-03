@@ -12,8 +12,7 @@ mod tasks;
 mod executable_command;
 mod runner;
 mod hexterm;
-
-pub type TaskId = String;
+mod terminal;
 
 fn main() {
     init_logging();
