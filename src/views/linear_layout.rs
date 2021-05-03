@@ -1,7 +1,5 @@
 use crate::views::{LinearLayout, Orientation, View, Dim, Dimensions, desired_size, CharDims, ViewId};
 use std::cmp::{min, max};
-use std::rc::Rc;
-use std::cell::RefCell;
 use log::info;
 use uuid::Uuid;
 use std::slice::IterMut;
@@ -160,9 +158,10 @@ impl View for LinearLayout {
         self.children.iter_mut()
     }
 
-    fn replace_content(&mut self, text: String) {
-        return; // No-op - you can't replace text in a LL.
+    fn replace_content(&mut self, _: String) {
+        // No-op - you can't replace text in a LL.
         // I know this breaks Liscov substitution and I'm not much happier about it.
+        return;
     }
 }
 
@@ -171,16 +170,16 @@ impl View for LinearLayout {
 mod tests {
     use super::*;
     use crate::views::TextView;
-    use crate::hexterm::formatting::{TaskText, DumbFormatter};
+    use crate::hexterm::formatting::{TaskText, DumbFormatter, TextFormatter};
 
     fn fixed_size_text_widget() -> TextView {
-        let mut tw = TextView::new(Dim::Fixed(10), Dim::Fixed(2));
+        let mut tw = TextView::new(Dim::Fixed(10), Dim::Fixed(2), Box::new(DumbFormatter{}));
         tw.text = "This is some raw text\nwith multiple lines\nand then another line.".to_owned();
         tw
     }
 
     fn wrap_content_text_widget() -> TextView {
-        let mut tw = TextView::new(Dim::WrapContent, Dim::WrapContent);
+        let mut tw = TextView::new(Dim::WrapContent, Dim::WrapContent, Box::new(DumbFormatter{}));
         tw.text = "This is some raw text\nwith multiple lines\nand then another line.".to_owned();
         tw
     }

@@ -1,12 +1,12 @@
 use crate::views::{View, TextView, Dim, Dimensions, desired_size, CharDims, ViewId};
-use crate::hexterm::formatting::TaskText;
 use std::cmp::min;
 use uuid::Uuid;
 use std::slice::IterMut;
 use log::info;
+use crate::hexterm::formatting::TextFormatter;
 
 impl TextView {
-    pub fn new(width: Dim, height: Dim) -> TextView {
+    pub fn new(width: Dim, height: Dim, formatter: Box<dyn TextFormatter>) -> TextView {
         TextView {
             id: Uuid::new_v4().to_string(),
             dims: Dimensions {
@@ -16,12 +16,9 @@ impl TextView {
             },
             visible: true,
             text: "".to_string(),
+            formatter: formatter,
             empty_children: Vec::new()
         }
-    }
-
-    pub fn replace_content(&mut self, text: String) -> () {
-        self.text = text;
     }
 }
 
@@ -41,7 +38,7 @@ impl View for TextView {
             _ => {
                 let lines = self.text.split("\n").collect::<Vec<&str>>();
                 let height = lines.iter().count();
-                let width = lines.iter().map(|l| l.len()).sum::<usize>();
+                let width = lines.iter().map(|l| l.len()).max().unwrap();
                 let desired_width_constraint = Dim::UpTo(width);
                 let desired_height_constraint  = Dim::UpTo(height);
 
@@ -65,13 +62,14 @@ impl View for TextView {
     fn height(&self) -> usize { self.dims.size.1 }
 
     fn render(&self) -> String {
-        self.text.clone()
+        self.render_lines().join("\n")
     }
 
     fn render_lines(&self) -> Vec<String> {
         self.text
             .split("\n")
-            .map(|s| s.to_string())
+            .take(self.height())
+            .map(|s| self.formatter.format(s, self.width()))
             .collect()
     }
 
@@ -91,11 +89,11 @@ mod tests {
     use crate::hexterm::formatting::DumbFormatter;
 
     fn fixed_size_text_widget() -> TextView {
-        TextView::new(Dim::Fixed(10), Dim::Fixed(2))
+        TextView::new(Dim::Fixed(10), Dim::Fixed(2), Box::new(DumbFormatter{}))
     }
 
     fn wrap_content_text_widget() -> TextView {
-        TextView::new(Dim::WrapContent, Dim::WrapContent)
+        TextView::new(Dim::WrapContent, Dim::WrapContent, Box::new(DumbFormatter{}))
     }
 
     #[test]
@@ -162,7 +160,7 @@ mod tests {
         tw.visible = false;
         tw.inflate(&(100, 100));
         assert_eq!(String::from(""), tw.render());
-        assert_eq!(vec![""], tw.render_lines());
+        assert_eq!(0, tw.render_lines().len());
     }
 
     #[test]

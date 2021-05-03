@@ -1,16 +1,13 @@
 use std::cmp::min;
 use regex::{Match, Regex};
-use crate::views::Dimensions;
-use log::info;
 
 pub struct TaskText {
-    raw_text: String,
-    formatter: Box<dyn TextFormatter>
+    pub raw_text: String
 }
 
 impl TaskText {
-    pub fn new(raw_text: String, formatter: Box<dyn TextFormatter>) -> TaskText {
-        TaskText { raw_text, formatter }
+    pub fn new(raw_text: String) -> TaskText {
+        TaskText { raw_text }
     }
 
     pub fn append(&mut self, more_text: String) {
@@ -21,36 +18,6 @@ impl TaskText {
         self.raw_text = new_text;
     }
 
-    pub fn format(&self, width: usize, height: usize) -> String {
-        info!("Formatting '{}' to {}x{}", self.raw_text, width, height);
-        return self.raw_text.clone();
-        // self.raw_text.split("\n").take(height). // First n Lines
-        //     map(|c| self.formatter.format(c, width)). // Format them
-        //     collect::<Vec<String>>().join("\n")     // Convert back into a single string
-    }
-
-    /***
-    Return the maximum width of this string
-    TODO: Use 'formatter' or something to account for escape sequences
-     */
-    pub fn width(&self) -> usize {
-        self.raw_text.split("\n").map(|c| c.len()).max().unwrap()
-    }
-
-    pub fn height(&self) -> usize {
-        self.raw_text.split("\n").count()
-    }
-}
-
-// Conversions to/from strings
-impl Into<String> for TaskText {
-    fn into(self) -> String { self.raw_text.clone() }
-}
-
-impl From<String> for TaskText {
-    fn from(text: String) -> Self {
-        Self::new(text, Box::new(Vt100Formatter{}))
-    }
 }
 
 /***
@@ -61,7 +28,6 @@ TextFormatter: A trait for classes that convert from a raw string into a formatt
 pub trait TextFormatter {
     fn format(&self, s: &str, max_len: usize) -> String;
 }
-
 pub struct DumbFormatter{}
 
 impl TextFormatter for DumbFormatter {

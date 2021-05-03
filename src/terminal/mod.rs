@@ -1,31 +1,23 @@
 use crate::tasks::Layout;
-use std::rc::{Rc, Weak};
-use std::cell::RefCell;
 use crate::views::{View, TextView, Dim, Orientation, LinearLayout, ViewId};
 use std::collections::HashMap;
-use std::thread;
-use std::sync::mpsc;
-use log::{trace, info, error};
+use log::{trace, info};
 
 extern crate termion;
 
-use termion::{clear, color, cursor};
-use std::io::{Write, stdout, Stdout, Stdin, stdin};
+use termion::{clear, cursor};
+use std::io::{Write, stdout, Stdout};
 use self::termion::raw::{IntoRawMode, RawTerminal};
 use self::termion::{style, terminal_size};
-use std::sync::mpsc::{Sender, Receiver};
-use self::termion::event::Key;
-use self::termion::input::TermRead;
-use crate::hexterm::formatting::{TaskText, Vt100Formatter};
-use std::time::Duration;
+use crate::hexterm::formatting::{TaskText, Vt100Formatter, TextFormatter};
 use crate::hexterm::TaskId;
 
-pub type RcView = Rc<RefCell<dyn View>>;
 pub type WindowMap = HashMap<TaskId, ViewId>;
 type TaskStore = HashMap<TaskId, TaskText>;
 
 pub struct Terminal {
     pub windows: WindowMap,
+    formatter: Box<dyn TextFormatter>,
     root: Box<dyn View>,
     tasks: TaskStore,
     running: bool,
@@ -39,11 +31,12 @@ impl Terminal {
         //       Windows.... Might be better to go back to just Strings. :/
         //       Except that TaskText has formatters.
         let mut windows = WindowMap::new();
-        let mut tasks = TaskStore::new();
+        let tasks = TaskStore::new();
         let root = construct_layout(layout, &mut windows);
-        let mut stdout = stdout().into_raw_mode().unwrap();
+        let stdout = stdout().into_raw_mode().unwrap();
+        let formatter = Box::new(Vt100Formatter {});
 
-        Terminal {  windows, tasks, root, stdout, running: false }
+        Terminal {  windows, tasks, root, stdout, formatter, running: false }
     }
 
     // TODO: Alter the task ID assigned to a View. This is altering
@@ -56,11 +49,11 @@ impl Terminal {
         output.iter().for_each(|(task_id, text)| {
             match self.tasks.get_mut(task_id) {
                 None => {
-                    let text = TaskText::new(text.clone(), Box::new(Vt100Formatter {}));
+                    let text = TaskText::new(text.clone());
                     self.tasks.insert(task_id.clone(), text);
                 },
-                Some(taskContents) => {
-                    taskContents.replace(text.clone());
+                Some(task_contents) => {
+                    task_contents.replace(text.clone());
                 }
             }
 
@@ -69,7 +62,8 @@ impl Terminal {
                 Some(view_id) => {
                     // If there's a TextView with this ID, set its contents to this value.
                     match self.tasks.get(task_id) {
-                        Some(task_text) => { set_view_content(view_id, &mut self.root, &task_text); },
+                        Some(task_text) => {
+                            set_view_content(view_id, &mut self.root, &task_text, &self.formatter); },
                         None => {}
                     }
                 }
@@ -82,30 +76,33 @@ impl Terminal {
     fn update_screen(&mut self) {
         let (width, height) = terminal_size().unwrap();
         self.root.inflate(&(width as usize, height as usize));
-        let output: String = self.root.render_lines().join("\n");
-        info!("Screen output: {}", output);
+        let output: Vec<String> = self.root.render_lines();
         // TODO: Does clearing the screen and reprinting everything cause flicker?
-        let rst_header = format!("{clear}{goto}",
-                                 clear = clear::All,
-                                 goto = cursor::Goto(1, 1));
+        writeln!(self.stdout, "{}", clear::All).unwrap();
 
-        writeln!(self.stdout, "{}{}{}",
-                 rst_header,
-                 output,
-                 style::Reset).unwrap();
+        for (i, line) in output.iter().enumerate() {
+            let current_line = (i + 1) as u16; // +1 because terminal coords are 1-based.
+
+            writeln!(self.stdout, "{}{}",
+                     cursor::Goto(1, current_line),
+                     line).unwrap()
+        }
+
+        // and reset our style back to standard. JIC.
+        writeln!(self.stdout, "{}", style::Reset).unwrap();
 
         self.stdout.flush().unwrap();
     }
 }
 
-fn set_view_content<'a>(id: &ViewId, mut view: &'a mut Box<dyn View>, text: &TaskText) -> bool {
+fn set_view_content<'a>(id: &ViewId, view: &'a mut Box<dyn View>, text: &TaskText, formatter: &Box<dyn TextFormatter>) -> bool {
     if view.id().eq(id) {
-        view.replace_content(text.format(view.width(), view.height()));
+        view.replace_content(text.raw_text.clone());
         return true;
     }
 
     view.children().any(|c|
-        set_view_content(id, c, text)
+        set_view_content(id, c, text, formatter)
     )
 }
 
@@ -137,7 +134,7 @@ fn build_text_view(layout: &Layout, windows: &mut WindowMap) -> Box<dyn View> {
 
     let task_id = layout.task_id.clone().unwrap_or(String::from("unknown"));
     trace!("Creating text view for {}", task_id);
-    let tv = TextView::new(w_const, h_const);
+    let tv = TextView::new(w_const, h_const, Box::new(Vt100Formatter{}));
     windows.insert(task_id.clone(), tv.id());
 
     Box::new(tv)

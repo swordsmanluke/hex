@@ -1,12 +1,6 @@
-use std::cmp::{Ordering, min};
-use std::rc::Rc;
-use std::cell::RefCell;
-use regex::{Match, Regex};
-use crate::hexterm::formatting::TaskText;
-use crate::tasks::Layout;
-use log::{trace, info};
-use crate::terminal::{WindowMap, RcView};
+use std::cmp::Ordering;
 use std::slice::IterMut;
+use crate::hexterm::formatting::TextFormatter;
 
 mod linear_layout;
 mod text_view;
@@ -70,6 +64,7 @@ pub struct TextView {
     dims: Dimensions,
     visible: bool,
     text: String,
+    formatter: Box<dyn TextFormatter>,
     empty_children: Vec<Box<dyn View>> //Just for an empty list we can return.
 }
 

@@ -2,9 +2,8 @@ use crate::hexterm::HexTerm;
 use crate::tasks::Config;
 use crate::runner::TaskRunner;
 use std::sync::mpsc;
-use portable_pty::{CommandBuilder, native_pty_system, PtySize};
-use log::{trace, info, warn, error};
-use std::collections::HashMap;
+// use portable_pty::{CommandBuilder, native_pty_system, PtySize};
+use log::{error};
 use crate::terminal::Terminal;
 
 impl HexTerm {
@@ -36,29 +35,28 @@ impl HexTerm {
         }
     }
 
-    fn start_pty(&mut self, command: &str) {
-        // Launch a PTY session
-        let pty_system = native_pty_system();
-        let mut pair = pty_system.openpty(PtySize {
-            rows: 24,
-            cols: 80,
-            // Not all systems support pixel_width, pixel_height,
-            // but it is good practice to set it to something
-            // that matches the size of the selected font.  That
-            // is more complex than can be shown here in this
-            // brief example though!
-            pixel_width: 0,
-            pixel_height: 0,
-        }).unwrap();
-
-        let cmd = CommandBuilder::new(command);
-        let child = pair.slave.spawn_command(cmd).unwrap();
-
-        let mut reader = pair.master.try_clone_reader().unwrap();
-
-        // Send data to the pty by writing to the master
-        writeln!(pair.master, "ls -l\r\n").unwrap();
-
-    }
+    // fn start_pty(&mut self, command: &str) {
+    //     // Launch a PTY session
+    //     let pty_system = native_pty_system();
+    //     let mut pair = pty_system.openpty(PtySize {
+    //         rows: 24,
+    //         cols: 80,
+    //         // Not all systems support pixel_width, pixel_height,
+    //         // but it is good practice to set it to something
+    //         // that matches the size of the selected font.  That
+    //         // is more complex than can be shown here in this
+    //         // brief example though!
+    //         pixel_width: 0,
+    //         pixel_height: 0,
+    //     }).unwrap();
+    //
+    //     let cmd = CommandBuilder::new(command);
+    //     let child = pair.slave.spawn_command(cmd).unwrap();
+    //
+    //     let mut reader = pair.master.try_clone_reader().unwrap();
+    //
+    //     // Send data to the pty by writing to the master
+    //     writeln!(pair.master, "ls -l\r\n").unwrap();
+    // }
 
 }

@@ -1,8 +1,7 @@
 use std::collections::HashMap;
-use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc::Receiver;
 
 use crate::runner::TaskRunner;
-use crate::tasks::Layout;
 use crate::terminal::Terminal;
 
 mod hexterm;
