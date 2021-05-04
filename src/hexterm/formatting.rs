@@ -1,25 +1,6 @@
 use std::cmp::min;
 use regex::{Match, Regex};
 
-pub struct TaskText {
-    pub raw_text: String
-}
-
-impl TaskText {
-    pub fn new(raw_text: String) -> TaskText {
-        TaskText { raw_text }
-    }
-
-    pub fn append(&mut self, more_text: String) {
-        self.raw_text.push_str(&more_text);
-    }
-
-    pub fn replace(&mut self, new_text: String) {
-        self.raw_text = new_text;
-    }
-
-}
-
 /***
 TextFormatter: A trait for classes that convert from a raw string into a formatted one.
     Generic in order to allow different Terminal backends to use their own custom

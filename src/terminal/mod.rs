@@ -9,34 +9,30 @@ use termion::{clear, cursor};
 use std::io::{Write, stdout, Stdout};
 use self::termion::raw::{IntoRawMode, RawTerminal};
 use self::termion::{style, terminal_size};
-use crate::hexterm::formatting::{TaskText, Vt100Formatter, TextFormatter};
+use crate::hexterm::formatting::{Vt100Formatter, TextFormatter};
 use crate::hexterm::TaskId;
 
 pub type WindowMap = HashMap<TaskId, ViewId>;
-type TaskStore = HashMap<TaskId, TaskText>;
+type TaskStore = HashMap<TaskId, String>;
 
 pub struct Terminal {
     pub windows: WindowMap,
     formatter: Box<dyn TextFormatter>,
     root: Box<dyn View>,
     tasks: TaskStore,
-    running: bool,
     stdout: RawTerminal<Stdout>
 }
 
 impl Terminal {
 
     pub fn new(layout: &Layout) -> Terminal {
-        // TODO: TaskText is referenced mutably out here and needs to be injected into
-        //       Windows.... Might be better to go back to just Strings. :/
-        //       Except that TaskText has formatters.
         let mut windows = WindowMap::new();
         let tasks = TaskStore::new();
         let root = construct_layout(layout, &mut windows);
         let stdout = stdout().into_raw_mode().unwrap();
         let formatter = Box::new(Vt100Formatter {});
 
-        Terminal {  windows, tasks, root, stdout, formatter, running: false }
+        Terminal {  windows, tasks, root, stdout, formatter }
     }
 
     // TODO: Alter the task ID assigned to a View. This is altering
@@ -46,31 +42,30 @@ impl Terminal {
     pub fn update(&mut self, output: HashMap<String, String>) {
         // TODO: The rendering here will differ a bit for Interactive processes.
         //       I guess we'll need to know if we're interactive or not in here.
-        output.iter().for_each(|(task_id, text)| {
-            match self.tasks.get_mut(task_id) {
-                None => {
-                    let text = TaskText::new(text.clone());
-                    self.tasks.insert(task_id.clone(), text);
-                },
-                Some(task_contents) => {
-                    task_contents.replace(text.clone());
-                }
-            }
+        self.store_output(output);
 
+        self.update_screen();
+    }
+
+    fn store_output(&mut self, output: HashMap<String, String>) {
+        output.iter().for_each(|(task_id, text)| {
+            // Store the output for later swapping into/out of a Window
+            self.tasks.insert(task_id.clone(), text.clone());
+
+            // Check - if a Window is displaying this task, update its associated View.
             match self.windows.get(task_id) {
                 None => {},
                 Some(view_id) => {
                     // If there's a TextView with this ID, set its contents to this value.
                     match self.tasks.get(task_id) {
+                        None => {},
                         Some(task_text) => {
-                            set_view_content(view_id, &mut self.root, &task_text, &self.formatter); },
-                        None => {}
+                            set_view_content(view_id, &mut self.root, &task_text, &self.formatter);
+                        }
                     }
                 }
             }
-        } );
-
-        self.update_screen();
+        });
     }
 
     fn update_screen(&mut self) {
@@ -95,9 +90,9 @@ impl Terminal {
     }
 }
 
-fn set_view_content<'a>(id: &ViewId, view: &'a mut Box<dyn View>, text: &TaskText, formatter: &Box<dyn TextFormatter>) -> bool {
+fn set_view_content<'a>(id: &ViewId, view: &'a mut Box<dyn View>, text: &String, formatter: &Box<dyn TextFormatter>) -> bool {
     if view.id().eq(id) {
-        view.replace_content(text.raw_text.clone());
+        view.replace_content(text.clone());
         return true;
     }
 
