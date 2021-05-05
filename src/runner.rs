@@ -14,7 +14,6 @@ use crate::tasks::Task;
 pub struct TaskRunner {
     pub commands: Vec<ExecutableCommand>,
     system_command_sender: Sender<HashMap<String, String>>,
-    running: bool,
 }
 
 impl TaskRunner {
@@ -24,7 +23,7 @@ impl TaskRunner {
             map(|t| task_to_command(t)).
             collect();
 
-        TaskRunner { commands, system_command_sender: output_tx, running: true }
+        TaskRunner { commands, system_command_sender: output_tx }
     }
 
     pub fn start(&mut self) {

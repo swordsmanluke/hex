@@ -9,8 +9,9 @@ pub(crate) mod formatting;
 
 pub type TaskId = String;
 pub struct HexTerm {
-
+    pub running: bool,
     runner: TaskRunner,
     terminal: Terminal,
     output_rx: Receiver<HashMap<TaskId, String>>,
+    command: String,
 }

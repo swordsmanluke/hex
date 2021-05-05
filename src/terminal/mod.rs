@@ -39,11 +39,14 @@ impl Terminal {
     //       the Layout... might need to keep it after all?
     //  pub fn assign_task_to_view(task_id, view)
 
+    /***
+     * Print the current display to the screen
+     *
+     * TODO: The rendering here will differ a bit for Interactive processes.
+     *        I guess we'll need to know if we're interactive or not in here.
+     ***/
     pub fn update(&mut self, output: HashMap<String, String>) {
-        // TODO: The rendering here will differ a bit for Interactive processes.
-        //       I guess we'll need to know if we're interactive or not in here.
         self.store_output(output);
-
         self.update_screen();
     }
 

@@ -170,7 +170,7 @@ impl View for LinearLayout {
 mod tests {
     use super::*;
     use crate::views::TextView;
-    use crate::hexterm::formatting::{ DumbFormatter, TextFormatter};
+    use crate::hexterm::formatting::DumbFormatter;
 
     fn fixed_size_text_widget() -> TextView {
         let mut tw = TextView::new(Dim::Fixed(10), Dim::Fixed(2), Box::new(DumbFormatter{}));
