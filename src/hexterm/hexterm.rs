@@ -10,7 +10,7 @@ use termion::input::TermRead;
 use std::sync::mpsc::Receiver;
 use termion::event::Key;
 use std::thread;
-use termion::terminal_size;
+use termion::{terminal_size, clear};
 
 impl HexTerm {
     pub fn new(config: Config) -> HexTerm {
@@ -34,7 +34,8 @@ impl HexTerm {
         self.running = true;
         self.runner.start();
 
-        writeln!(stdout(), "{}", termion::cursor::Hide).unwrap();
+        // Empty the screen!
+        writeln!(stdout(), "{}{}", termion::cursor::Hide, clear::All).unwrap();
 
         while self.running {
             match self.output_rx.try_recv() {
@@ -46,7 +47,7 @@ impl HexTerm {
             stdout().flush().unwrap();
         }
 
-        writeln!(stdout(), "Shutting down...{}", termion::cursor::Show).unwrap();
+        writeln!(stdout(), "{}So long!{}", clear::All, termion::cursor::Show).unwrap();
     }
 
     fn print_prompt(&self) {

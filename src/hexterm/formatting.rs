@@ -1,5 +1,7 @@
 use std::cmp::min;
 use regex::{Match, Regex};
+use termion::cursor::Goto;
+use log::info;
 
 /***
 TextFormatter: A trait for classes that convert from a raw string into a formatted one.
@@ -7,13 +9,13 @@ TextFormatter: A trait for classes that convert from a raw string into a formatt
     String-variants.
  */
 pub trait TextFormatter {
-    fn format(&self, s: &str, max_len: usize) -> String;
+    fn format(&self, s: &str, dims: (usize, usize), location: (u16, u16)) -> String;
 }
 pub struct DumbFormatter{}
 
 impl TextFormatter for DumbFormatter {
-    fn format(&self, s: &str, n: usize) -> String {
-        let last_len = min(n, s.len());
+    fn format(&self, s: &str, dims: (usize, usize), _: (u16, u16)) -> String {
+        let last_len = min(dims.1, s.len());
         s[0..last_len].to_string()
     }
 }
@@ -26,11 +28,23 @@ fn find_vt100s(s: &str) -> Vec<Match> {
 }
 
 impl TextFormatter for Vt100Formatter {
-    fn format(&self, s: &str, n: usize) -> String {
-        if n >= s.len() { return format!("{:width$}", s, width = n) }
+    fn format(&self, s: &str, dims: (usize, usize), location: (u16, u16)) -> String {
+        let mut final_text = "".to_string();
+
+        for (i, line) in s.split("\n").take(dims.1).enumerate() {
+            let (_, sliced) = Vt100Formatter::esc_aware_slice(line, dims.0);
+            final_text.push_str(format!("{}{:width$} ", Goto(location.0, location.1 + i as u16), sliced, width = dims.0).as_str());
+        };
+        return final_text
+    }
+}
+
+impl Vt100Formatter {
+    fn esc_aware_slice(s: &str, n: usize) -> (usize, String) {
+        if n >= s.len() { return (s.len(), format!("{:width$}", s, width = s.len())) }
 
         let vt100s = find_vt100s(s);
-        if vt100s.last().is_none() { return s[0..n].to_string(); }
+        if vt100s.last().is_none() { return (n, s[0..n].to_string()); }
         let mut captured_chars = 0;
         let mut end = 0;
 
@@ -52,11 +66,10 @@ impl TextFormatter for Vt100Formatter {
             end += n - captured_chars; // grab any remaining characters we need
         }
 
-        // info!("Str {} chars\n----\n{}\n----", s.len(), s);
-        // info!("Slice:\n-----\n{}\n------", s[0..end].to_string());
-
         let slice_end = min(s.len(), end);
-        format!("{:width$}", s[0..slice_end].to_string(), width = end) // TODO: Width = max width? To erase previous text?
+        let sliced_str = s[0..slice_end].to_string();
+
+        (end, sliced_str)
     }
 }
 
@@ -68,7 +81,7 @@ mod tests {
     #[test]
     fn slicing_vt100_string_works() {
         let fmt = Vt100Formatter{};
-        let fmt_str = fmt.format(VT100_TEST, 2);
-        assert_eq!("T\u{1B}[33mE", fmt_str);
+        let fmt_str = fmt.format(VT100_TEST, (1, 2), (1, 1));
+        assert_eq!("\u{1b}[1;1HT\u{1B}[33mE", fmt_str);
     }
 }

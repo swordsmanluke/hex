@@ -6,11 +6,12 @@ use std::slice::IterMut;
 
 
 impl LinearLayout {
-    pub fn new(orientation: Orientation, width: Dim, height: Dim) -> LinearLayout {
+    pub fn new(orientation: Orientation, width: Dim, height: Dim, location: (u16, u16)) -> LinearLayout {
         LinearLayout {
             id: Uuid::new_v4().to_string(),
             orientation: orientation,
             dims: Dimensions::new(width, height),
+            location: location,
             children: vec![],
             visible: true,
         }
@@ -18,38 +19,6 @@ impl LinearLayout {
 
     pub fn add_child(&mut self, child: Box<dyn View>) {
         self.children.push(child);
-    }
-
-    fn render_vertical(&self) -> String {
-        let lines: Vec<String> = self.children.iter().map(|c| c.render()).collect();
-        lines.iter().
-            take(self.height()).
-            map(|c| c.to_string()).
-            collect::<Vec<String>>().
-            join("\n")
-    }
-
-    fn render_horizontal(&self) -> String {
-        let mut lines: Vec<String> = vec![];
-        for _ in 0..self.height() {
-            lines.push(String::from(""))
-        }
-
-        for c in &self.children {
-            for i in 0..self.height() {
-                let line = match c.render_lines().get(i) {
-                    None => String::from(""),
-                    Some(l) => l.to_string()
-                };
-
-                lines[i] += line.as_str();
-            }
-        };
-
-        lines.iter().
-            map(|line| (&*format!("{:width$}", line, width = self.width())).to_string()).
-            collect::<Vec<String>>().
-            join("\n")
     }
 
     fn update_child_dims(orientation: Orientation, childrens_desired_dims: CharDims, child_dims: CharDims) -> CharDims {
@@ -91,7 +60,16 @@ impl View for LinearLayout {
         self.id.clone()
     }
 
-    fn inflate(&mut self, parent_dimensions: &CharDims) -> CharDims {
+    fn dirty(&self) -> bool {
+        self.children.iter().any(|c| c.dirty())
+    }
+
+    fn wash(&mut self) {
+        self.children.iter_mut().for_each(|c| c.wash());
+    }
+
+    fn inflate(&mut self, parent_dimensions: &CharDims, location: (u16, u16)) -> CharDims {
+        self.location = location;
         if !self.visible {
             self.dims.size = (0, 0);
             return self.dims.size;
@@ -106,10 +84,16 @@ impl View for LinearLayout {
 
         let mut remaining_parent_dims = self.dims.size.clone();
 
-        for v in &mut self.children {
-            let child_dims = v.inflate(&remaining_parent_dims);
+        let mut next_child_loc = location;
+        for child in &mut self.children {
+            let child_dims = child.inflate(&remaining_parent_dims, next_child_loc);
             childrens_desired_dims = LinearLayout::update_child_dims(self.orientation, childrens_desired_dims, child_dims);
             remaining_parent_dims = LinearLayout::update_parent_dims(self.orientation, remaining_parent_dims, child_dims);
+
+            next_child_loc = match self.orientation {
+                Orientation::HORIZONTAL =>  { (next_child_loc.0 + child.width() as u16, next_child_loc.1) },
+                Orientation::VERTICAL =>    { (next_child_loc.0, next_child_loc.1 + child.height() as u16) }
+            };
         }
 
         let new_most_restrictive_width = min(Dim::Fixed(childrens_desired_dims.0), most_restrictive_width);
@@ -142,16 +126,8 @@ impl View for LinearLayout {
     fn height(&self) -> usize { self.dims.size.1 }
 
     fn render(&self) -> String {
-        if !self.visible { return String::new() }
-
-        match self.orientation {
-            Orientation::VERTICAL => self.render_vertical(),
-            Orientation::HORIZONTAL => self.render_horizontal()
-        }
-    }
-
-    fn render_lines(&self) -> Vec<String> {
-        self.render().split("\n").map(|c| c.to_string()).collect()
+        if !self.visible || !self.dirty() { return String::new() }
+        self.children.iter().map(|c| c.render()).collect::<Vec<String>>().join("")
     }
 
     fn children(&mut self) -> IterMut<Box<dyn View>> {
@@ -170,30 +146,30 @@ impl View for LinearLayout {
 mod tests {
     use super::*;
     use crate::views::TextView;
-    use crate::hexterm::formatting::DumbFormatter;
+    use crate::hexterm::formatting::{DumbFormatter, Vt100Formatter};
 
     fn fixed_size_text_widget() -> TextView {
-        let mut tw = TextView::new(Dim::Fixed(10), Dim::Fixed(2), Box::new(DumbFormatter{}));
+        let mut tw = TextView::new(Dim::Fixed(10), Dim::Fixed(2), Box::new(Vt100Formatter{}), (1, 1));
         tw.text = "This is some raw text\nwith multiple lines\nand then another line.".to_owned();
         tw
     }
 
     fn wrap_content_text_widget() -> TextView {
-        let mut tw = TextView::new(Dim::WrapContent, Dim::WrapContent, Box::new(DumbFormatter{}));
+        let mut tw = TextView::new(Dim::WrapContent, Dim::WrapContent, Box::new(Vt100Formatter{}), (1, 1));
         tw.text = "This is some raw text\nwith multiple lines\nand then another line.".to_owned();
         tw
     }
 
     fn vert_ll_with_wrap_content() -> LinearLayout {
-        LinearLayout::new(Orientation::VERTICAL, Dim::WrapContent, Dim::WrapContent)
+        LinearLayout::new(Orientation::VERTICAL, Dim::WrapContent, Dim::WrapContent, (1, 1))
     }
 
     fn vert_ll_with_fixed_size() -> LinearLayout {
-        LinearLayout::new(Orientation::VERTICAL, Dim::Fixed(5), Dim::Fixed(2))
+        LinearLayout::new(Orientation::VERTICAL, Dim::Fixed(5), Dim::Fixed(2), (1, 1))
     }
 
     fn horz_ll_with_wrap_content() -> LinearLayout {
-        LinearLayout::new(Orientation::HORIZONTAL, Dim::WrapContent, Dim::WrapContent)
+        LinearLayout::new(Orientation::HORIZONTAL, Dim::WrapContent, Dim::WrapContent, (1, 1))
     }
 
     #[test]
@@ -205,7 +181,7 @@ mod tests {
     fn when_wrapping_content_takes_size_from_children() {
         let mut ll = vert_ll_with_wrap_content();
         ll.add_child(Box::new(fixed_size_text_widget()));
-        ll.inflate(&(100, 100));
+        ll.inflate(&(100, 100), (1, 1));
         assert_eq!(10, ll.width());
         assert_eq!(2, ll.height());
     }
@@ -215,7 +191,7 @@ mod tests {
         let mut ll = vert_ll_with_wrap_content();
         ll.add_child(Box::new(fixed_size_text_widget()));
         ll.add_child(Box::new(wrap_content_text_widget()));
-        ll.inflate(&(100, 100));
+        ll.inflate(&(100, 100), (1, 1));
         assert_eq!(ll.width(), 22);
     }
 
@@ -224,7 +200,7 @@ mod tests {
         let mut ll = vert_ll_with_wrap_content();
         ll.add_child(Box::new(fixed_size_text_widget()));
         ll.add_child(Box::new(fixed_size_text_widget()));
-        ll.inflate(&(100, 100));
+        ll.inflate(&(100, 100), (1, 1));
         assert_eq!(ll.height(), 4);
     }
 
@@ -233,7 +209,7 @@ mod tests {
         let mut ll = horz_ll_with_wrap_content();
         ll.add_child(Box::new(fixed_size_text_widget()));
         ll.add_child(Box::new(fixed_size_text_widget()));
-        ll.inflate(&(100, 100));
+        ll.inflate(&(100, 100), (1, 1));
         assert_eq!(ll.width(), 20);
     }
 
@@ -242,7 +218,7 @@ mod tests {
         let mut ll = horz_ll_with_wrap_content();
         ll.add_child(Box::new(fixed_size_text_widget()));
         ll.add_child(Box::new(wrap_content_text_widget()));
-        ll.inflate(&(100, 100));
+        ll.inflate(&(100, 100), (1, 1));
         assert_eq!(ll.height(), 3);
     }
 
@@ -250,7 +226,7 @@ mod tests {
     fn vert_rendering_works() {
         let mut ll = vert_ll_with_wrap_content();
         ll.add_child(Box::new(fixed_size_text_widget()));
-        ll.inflate(&(100, 100));
+        ll.inflate(&(100, 100), (1, 1));
 
         assert_eq!("This is so\nwith multi".to_string(), ll.render());
     }
@@ -260,7 +236,7 @@ mod tests {
         let mut ll = vert_ll_with_wrap_content();
         ll.add_child(Box::new(fixed_size_text_widget()));
         ll.add_child(Box::new(fixed_size_text_widget()));
-        ll.inflate(&(100, 100));
+        ll.inflate(&(100, 100), (1, 1));
 
         assert_eq!("This is so\nwith multi\nThis is so\nwith multi".to_string(), ll.render());
     }
@@ -271,7 +247,7 @@ mod tests {
         ll.add_child(Box::new(fixed_size_text_widget()));
         ll.add_child(Box::new(fixed_size_text_widget()));
         ll.add_child(Box::new(fixed_size_text_widget()));
-        ll.inflate(&(100, 100));
+        ll.inflate(&(100, 100), (1, 1));
 
         assert_eq!("This is soThis is soThis is so\nwith multiwith multiwith multi".to_string(), ll.render());
     }
@@ -281,9 +257,8 @@ mod tests {
         let mut ll = vert_ll_with_fixed_size();
         ll.add_child(Box::new(fixed_size_text_widget()));
         ll.visible = false;
-        ll.inflate(&(100, 100));
+        ll.inflate(&(100, 100), (1, 1));
         assert_eq!(String::from(""), ll.render());
-        assert_eq!(vec![""], ll.render_lines());
     }
 
     #[test]
@@ -291,7 +266,7 @@ mod tests {
         let mut ll = vert_ll_with_fixed_size();
         ll.add_child(Box::new(fixed_size_text_widget()));
         ll.visible = false;
-        ll.inflate(&(100, 100));
+        ll.inflate(&(100, 100), (1, 1));
         assert_eq!(ll.dims.size, (0, 0));
     }
 }

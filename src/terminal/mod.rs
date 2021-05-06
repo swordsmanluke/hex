@@ -28,7 +28,7 @@ impl Terminal {
     pub fn new(layout: &Layout) -> Terminal {
         let mut windows = WindowMap::new();
         let tasks = TaskStore::new();
-        let root = construct_layout(layout, &mut windows);
+        let root = construct_layout(layout, &mut windows, (1, 1));
         let stdout = stdout().into_raw_mode().unwrap();
         let formatter = Box::new(Vt100Formatter {});
 
@@ -73,18 +73,9 @@ impl Terminal {
 
     fn update_screen(&mut self) {
         let (width, height) = terminal_size().unwrap();
-        self.root.inflate(&(width as usize, height as usize));
-        let output: Vec<String> = self.root.render_lines();
-        // TODO: Does clearing the screen and reprinting everything cause flicker?
-        writeln!(self.stdout, "{}", clear::All).unwrap();
-
-        for (i, line) in output.iter().enumerate() {
-            let current_line = (i + 1) as u16; // +1 because terminal coords are 1-based.
-
-            writeln!(self.stdout, "{}{}",
-                     cursor::Goto(1, current_line),
-                     line).unwrap()
-        }
+        self.root.inflate(&(width as usize, height as usize), (1, 1));
+        writeln!(self.stdout, "{}", self.root.render()).unwrap();
+        self.root.wash();
 
         // and reset our style back to standard. JIC.
         writeln!(self.stdout, "{}", style::Reset).unwrap();
@@ -108,19 +99,19 @@ fn set_view_content<'a>(id: &ViewId, view: &'a mut Box<dyn View>, text: &String,
  * Converts Layout to View
  * Pass in a Layout description at the top and it'll build the concrete View objects.
  */
-pub fn construct_layout(layout: &Layout, windows: &mut WindowMap) -> Box<dyn View> {
+pub fn construct_layout(layout: &Layout, windows: &mut WindowMap, location: (u16, u16)) -> Box<dyn View> {
     info!("Building {}:{}", layout.kind, layout.task_id.clone().unwrap_or("".to_string()));
 
     let constructed: Box<dyn View> = match layout.kind.as_ref() {
-        "linearlayout" => build_linear_layout(&layout, windows),
-        "textview" => build_text_view(&layout, windows),
+        "linearlayout" => build_linear_layout(&layout, windows, location),
+        "textview" => build_text_view(&layout, windows, location),
         _ => panic!("Unknown layout {}", layout.kind)
     };
 
     return constructed;
 }
 
-fn build_text_view(layout: &Layout, windows: &mut WindowMap) -> Box<dyn View> {
+fn build_text_view(layout: &Layout, windows: &mut WindowMap, location: (u16, u16)) -> Box<dyn View> {
     let h_const = match layout.height {
         Some(h) => Dim::Fixed(h),
         None => Dim::WrapContent
@@ -132,13 +123,13 @@ fn build_text_view(layout: &Layout, windows: &mut WindowMap) -> Box<dyn View> {
 
     let task_id = layout.task_id.clone().unwrap_or(String::from("unknown"));
     trace!("Creating text view for {}", task_id);
-    let tv = TextView::new(w_const, h_const, Box::new(Vt100Formatter{}));
+    let tv = TextView::new(w_const, h_const, Box::new(Vt100Formatter{}), location);
     windows.insert(task_id.clone(), tv.id());
 
     Box::new(tv)
 }
 
-fn build_linear_layout(layout: &Layout, windows: &mut WindowMap) -> Box<dyn View> {
+fn build_linear_layout(layout: &Layout, windows: &mut WindowMap, location: (u16, u16)) -> Box<dyn View> {
     let orientation = match layout.orientation.as_ref().unwrap().as_ref() {
         "vertical" => Orientation::VERTICAL,
         _ => Orientation::HORIZONTAL
@@ -154,10 +145,15 @@ fn build_linear_layout(layout: &Layout, windows: &mut WindowMap) -> Box<dyn View
         None => Dim::WrapContent
     };
 
-    let mut ll: LinearLayout = LinearLayout::new(orientation, w_const, h_const);
+    let mut ll: LinearLayout = LinearLayout::new(orientation, w_const, h_const, location);
 
+    let mut next_child_loc = location;
     for child in layout.children.as_ref().unwrap_or(&Vec::new()) {
-        let child= construct_layout(&child, windows);
+        let child= construct_layout(&child, windows, next_child_loc);
+        next_child_loc = match orientation {
+            Orientation::HORIZONTAL => { (next_child_loc.0, next_child_loc.1 + child.width() as u16) }
+            Orientation::VERTICAL => { (next_child_loc.0 + child.height() as u16, next_child_loc.1) }
+        };
         ll.add_child(child);
     }
 

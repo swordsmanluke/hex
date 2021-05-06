@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
-use std::slice::IterMut;
 use crate::hexterm::formatting::TextFormatter;
+use std::slice::IterMut;
 
 mod linear_layout;
 mod text_view;
@@ -45,12 +45,13 @@ View: A trait representing a render-able text widget.
  */
 pub trait View {
     fn id(&self) -> ViewId;
-    fn inflate(&mut self, parent_size: &CharDims) -> CharDims;
+    fn dirty(&self) -> bool;
+    fn wash(&mut self);
+    fn inflate(&mut self, parent_size: &CharDims, location: (u16, u16)) -> CharDims;
     fn constraints(&self) -> (Dim, Dim);
     fn width(&self) -> usize;
     fn height(&self) -> usize;
     fn render(&self) -> String;
-    fn render_lines(&self) -> Vec<String>;
     fn children(&mut self) -> IterMut<Box<dyn View>>;
     fn replace_content(&mut self, text: String);
 }
@@ -61,10 +62,12 @@ TextView: A simple text container. The only thing that _displays_ stuff.
 pub type ViewId = String;
 pub struct TextView {
     id: ViewId,
+    location: (u16, u16),
     dims: Dimensions,
     visible: bool,
     text: String,
     formatter: Box<dyn TextFormatter>,
+    dirty: bool,
     empty_children: Vec<Box<dyn View>> //Just for an empty list we can return.
 }
 
@@ -85,6 +88,7 @@ pub struct LinearLayout {
     orientation: Orientation,
     children: Vec<Box<dyn View>>,
     dims: Dimensions,
+    location: (u16, u16),
     visible: bool
 }
 
