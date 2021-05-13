@@ -1,6 +1,6 @@
 use crate::hexterm::HexTerm;
 use crate::tasks::Config;
-use crate::runner::TaskRunner;
+use crate::runner::WidgetUpdater;
 use std::sync::mpsc;
 // use portable_pty::{CommandBuilder, native_pty_system, PtySize};
 use log::{error};
@@ -16,14 +16,14 @@ impl HexTerm {
     pub fn new(config: Config) -> HexTerm {
         // Create channel for widgets/apps to send output back to Hex
         let (output_tx, output_rx) = mpsc::channel();
-        let tasks = config.tasks;
+        let widgets = config.widgets;
         let layout = config.layout;
 
-        let runner = TaskRunner::new(tasks, output_tx);
+        let widget_runner = WidgetUpdater::new(widgets, output_tx);
         let terminal = Terminal::new(&layout);
         let command = "".to_owned();
 
-        return HexTerm { runner, terminal, output_rx, command, running: false }
+        return HexTerm { widget_runner, terminal, output_rx, command, running: false }
     }
 
     pub fn run(&mut self) {
@@ -32,7 +32,7 @@ impl HexTerm {
 
         let key_rx = self.run_input_loop();
         self.running = true;
-        self.runner.start();
+        self.widget_runner.start();
 
         // Empty the screen!
         writeln!(stdout(), "{}{}", termion::cursor::Hide, clear::All).unwrap();
@@ -94,7 +94,7 @@ impl HexTerm {
     pub fn execute_command(&mut self) {
         let mut parts = self.command.trim().split_whitespace();
         let task_id = parts.next().unwrap().to_owned();
-        self.runner.run_command(task_id, parts.collect::<Vec<&str>>().join(" "));
+        self.widget_runner.run_command(task_id, parts.collect::<Vec<&str>>().join(" "));
         self.command.truncate(0);
     }
 

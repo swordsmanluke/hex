@@ -21,6 +21,7 @@ impl TextFormatter for DumbFormatter {
 }
 
 pub struct Vt100Formatter{}
+pub struct InteractiveVt100Formatter{}
 
 fn find_vt100s(s: &str) -> Vec<Match> {
     let vt100_regex = Regex::new(r"((\u001b\[|\u009b)[\u0030-\u003f]*[\u0020-\u002f]*[\u0040-\u007e])+").unwrap();
@@ -28,6 +29,18 @@ fn find_vt100s(s: &str) -> Vec<Match> {
 }
 
 impl TextFormatter for Vt100Formatter {
+    fn format(&self, s: &str, dims: (usize, usize), location: (u16, u16)) -> String {
+        let mut final_text = "".to_string();
+
+        for (i, line) in s.split("\n").take(dims.1).enumerate() {
+            let (_, sliced) = Vt100Formatter::esc_aware_slice(line, dims.0);
+            final_text.push_str(format!("{}{:width$}", Goto(location.0, location.1 + i as u16), sliced, width = dims.0).as_str());
+        };
+        return final_text
+    }
+}
+
+impl TextFormatter for InteractiveVt100Formatter {
     fn format(&self, s: &str, dims: (usize, usize), location: (u16, u16)) -> String {
         let mut final_text = "".to_string();
 
@@ -81,7 +94,8 @@ mod tests {
     #[test]
     fn slicing_vt100_string_works() {
         let fmt = Vt100Formatter{};
-        let fmt_str = fmt.format(VT100_TEST, (1, 2), (1, 1));
+        let fmt_str = fmt.format(VT100_TEST, (2, 1), (1, 1));
+        println!("{}", fmt_str);
         assert_eq!("\u{1b}[1;1HT\u{1B}[33mE", fmt_str);
     }
 }

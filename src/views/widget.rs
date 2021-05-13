@@ -1,16 +1,15 @@
-use crate::views::{View, TextView, Dim, Dimensions, desired_size, CharDims, ViewId};
+use crate::views::{View, Widget, Dim, Dimensions, desired_size, CharDims, ViewId};
 use std::cmp::min;
 use uuid::Uuid;
 use std::slice::IterMut;
 use log::info;
 use crate::hexterm::formatting::TextFormatter;
-use regex::internal::Char;
 use termion::cursor::Goto;
-use std::io::{stdin, stdout, Write};
+use std::io::{stdout, Write};
 
-impl TextView {
-    pub fn new(width: Dim, height: Dim, formatter: Box<dyn TextFormatter>, location: (u16, u16)) -> TextView {
-        TextView {
+impl Widget {
+    pub fn new(width: Dim, height: Dim, formatter: Box<dyn TextFormatter>, location: (u16, u16)) -> Widget {
+        Widget {
             id: Uuid::new_v4().to_string(),
             dims: Dimensions {
                 width_constraint: width,
@@ -27,7 +26,7 @@ impl TextView {
     }
 }
 
-impl View for TextView {
+impl View for Widget {
     fn id(&self) -> ViewId {
         self.id.clone()
     }
@@ -77,9 +76,29 @@ impl View for TextView {
         self.empty_children.iter_mut()
     }
 
-    fn replace_content(&mut self, text: String) {
+    fn update_content(&mut self, text: String) {
         self.text = text;
         self.dirty = true; // gotta be updated!
+    }
+}
+
+impl Widget {
+    fn update_dims(&mut self, parent_dimensions: &(usize, usize)) -> CharDims {
+        match &self.text.len() {
+            0 => { self.dims.size.clone() },
+            _ => {
+                let lines = self.text.split("\n").collect::<Vec<&str>>();
+                let height = lines.iter().count();
+                let width = lines.iter().map(|l| l.len()).max().unwrap();
+                let desired_width_constraint = Dim::UpTo(width);
+                let desired_height_constraint = Dim::UpTo(height);
+
+                let most_restrictive_width = min(desired_width_constraint, min(self.dims.width_constraint, Dim::Fixed(parent_dimensions.0)));
+                let most_restrictive_height = min(desired_height_constraint, min(self.dims.height_constraint, Dim::Fixed(parent_dimensions.1)));
+
+                (desired_size(&most_restrictive_width), desired_size(&most_restrictive_height))
+            }
+        }
     }
 }
 
@@ -96,12 +115,12 @@ mod tests {
     use super::*;
     use crate::hexterm::formatting::Vt100Formatter;
 
-    fn fixed_size_text_widget() -> TextView {
-        TextView::new(Dim::Fixed(10), Dim::Fixed(2), Box::new(Vt100Formatter{}), (1, 1))
+    fn fixed_size_text_widget() -> Widget {
+        Widget::new(Dim::Fixed(10), Dim::Fixed(2), Box::new(Vt100Formatter{}), (1, 1))
     }
 
-    fn wrap_content_text_widget() -> TextView {
-        TextView::new(Dim::WrapContent, Dim::WrapContent, Box::new(Vt100Formatter{}), (1, 1))
+    fn wrap_content_text_widget() -> Widget {
+        Widget::new(Dim::WrapContent, Dim::WrapContent, Box::new(Vt100Formatter{}), (1, 1))
     }
 
     #[test]
@@ -150,7 +169,7 @@ mod tests {
         let mut tw = wrap_content_text_widget();
         tw.text = "some\ntext".to_string();
         tw.inflate(&(100, 100), (1, 1));
-        assert_eq!(String::from("some\ntext"), tw.render());
+        assert_eq!(String::from("\u{1b}[1;1Hsome\u{1b}[2;1Htext"), tw.render());
     }
 
     #[test]
@@ -158,7 +177,7 @@ mod tests {
         let mut tw = fixed_size_text_widget();
         tw.text = "some really long text\nand another really long line\nthis line doesn't show up at all".to_string();
         tw.inflate(&(100, 100), (1, 1));
-        assert_eq!(String::from("some reall\nand anothe"), tw.render());
+        assert_eq!(String::from("\u{1b}[1;1Hsome reall\u{1b}[2;1Hand anothe"), tw.render());
     }
 
     #[test]
@@ -177,25 +196,5 @@ mod tests {
         tw.visible = false;
         tw.inflate(&(100, 100), (1, 1));
         assert_eq!(tw.dims.size, (0, 0));
-    }
-}
-
-impl TextView {
-    fn update_dims(&mut self, parent_dimensions: &(usize, usize)) -> CharDims {
-        match &self.text.len() {
-            0 => { self.dims.size.clone() },
-            _ => {
-                let lines = self.text.split("\n").collect::<Vec<&str>>();
-                let height = lines.iter().count();
-                let width = lines.iter().map(|l| l.len()).max().unwrap();
-                let desired_width_constraint = Dim::UpTo(width);
-                let desired_height_constraint = Dim::UpTo(height);
-
-                let most_restrictive_width = min(desired_width_constraint, min(self.dims.width_constraint, Dim::Fixed(parent_dimensions.0)));
-                let most_restrictive_height = min(desired_height_constraint, min(self.dims.height_constraint, Dim::Fixed(parent_dimensions.1)));
-
-                (desired_size(&most_restrictive_width), desired_size(&most_restrictive_height))
-            }
-        }
     }
 }

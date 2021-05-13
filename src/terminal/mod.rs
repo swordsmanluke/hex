@@ -1,11 +1,10 @@
 use crate::tasks::Layout;
-use crate::views::{View, TextView, Dim, Orientation, LinearLayout, ViewId};
+use crate::views::{View, Widget, Dim, Orientation, LinearLayout, ViewId};
 use std::collections::HashMap;
 use log::{trace, info};
 
 extern crate termion;
 
-use termion::{clear, cursor};
 use std::io::{Write, stdout, Stdout};
 use self::termion::raw::{IntoRawMode, RawTerminal};
 use self::termion::{style, terminal_size};
@@ -59,7 +58,7 @@ impl Terminal {
             match self.windows.get(task_id) {
                 None => {},
                 Some(view_id) => {
-                    // If there's a TextView with this ID, set its contents to this value.
+                    // If there's a View with this ID, set its contents to this value.
                     match self.tasks.get(task_id) {
                         None => {},
                         Some(task_text) => {
@@ -86,7 +85,7 @@ impl Terminal {
 
 fn set_view_content<'a>(id: &ViewId, view: &'a mut Box<dyn View>, text: &String, formatter: &Box<dyn TextFormatter>) -> bool {
     if view.id().eq(id) {
-        view.replace_content(text.clone());
+        view.update_content(text.clone());
         return true;
     }
 
@@ -123,7 +122,7 @@ fn build_text_view(layout: &Layout, windows: &mut WindowMap, location: (u16, u16
 
     let task_id = layout.task_id.clone().unwrap_or(String::from("unknown"));
     trace!("Creating text view for {}", task_id);
-    let tv = TextView::new(w_const, h_const, Box::new(Vt100Formatter{}), location);
+    let tv = Widget::new(w_const, h_const, Box::new(Vt100Formatter{}), location);
     windows.insert(task_id.clone(), tv.id());
 
     Box::new(tv)

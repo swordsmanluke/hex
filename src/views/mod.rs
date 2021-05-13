@@ -3,7 +3,7 @@ use crate::hexterm::formatting::TextFormatter;
 use std::slice::IterMut;
 
 mod linear_layout;
-mod text_view;
+mod widget;
 
 /***
 Dim: Represents a constraint on layout.
@@ -53,14 +53,14 @@ pub trait View {
     fn height(&self) -> usize;
     fn render(&self) -> String;
     fn children(&mut self) -> IterMut<Box<dyn View>>;
-    fn replace_content(&mut self, text: String);
+    fn update_content(&mut self, text: String);
 }
 
 /***
-TextView: A simple text container. The only thing that _displays_ stuff.
+Widget: A simple text container. The thing that displays non-interactive stuff.
  */
 pub type ViewId = String;
-pub struct TextView {
+pub struct Widget {
     id: ViewId,
     location: (u16, u16),
     dims: Dimensions,
@@ -125,8 +125,6 @@ pub fn desired_size(constraint: &Dim) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    const VT100_TEST: &str = "T\u{1B}[33mE\u{1B}[96mS\u{1B}[39mT\u{1B}[39m"; // "TEST" interspersed with color codes for VT100 terminals
-
     #[test]
     fn dims_can_be_sorted() {
         assert!(Dim::Fixed(0) < Dim::Fixed(1));

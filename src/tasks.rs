@@ -7,12 +7,22 @@ use fmt::Formatter;
 
 #[derive(Deserialize, Clone)]
 pub struct Config {
-    pub tasks: Vec<Task>,
+    pub widgets: Vec<Widget>,
+    pub apps: Vec<App>,
     pub layout: Layout,
 }
 
 #[derive(Deserialize, Clone)]
-pub struct Task {
+pub struct App {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub path: String,
+    pub command: String
+}
+
+#[derive(Deserialize, Clone)]
+pub struct Widget {
     pub id: String,
     pub name: String,
     pub description: String,

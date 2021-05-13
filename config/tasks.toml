@@ -9,7 +9,7 @@
 #   period: The time between refreshes. Expects a digit plus an optional unit character.
 #           Ex: "10m" for ten minutes. Defaults to seconds if no unit provided
 
-[[tasks]]
+[[widgets]]
     id = "forecast_d"
     name = "Daily Forecast"
     description = "See the daily forecast for the week"
@@ -17,7 +17,7 @@
     command = "dark_goggles daily"
     period = "1h"
 
-[[tasks]]
+[[widgets]]
     id = "forecast_h"
     name = "Hourly Forecast"
     description = "See the forecast for the next 8 hours"
@@ -25,7 +25,7 @@
     command = "dark_goggles hourly"
     period = "1m"
 
-[[tasks]]
+[[widgets]]
     id = "time"
     name = "Date and Time"
     description = "See the current date and time"
@@ -33,7 +33,7 @@
     command = "./date"
     period = "1s"
 
-[[tasks]]
+[[widgets]]
     id = "todo"
     name = "Todo and Calendar"
     description = "See upcoming todo list items"
@@ -41,7 +41,7 @@
     command = "./run"
     period = "1m"
 
-[[tasks]]
+[[widgets]]
     id = "mem-free"
     name = "Memory Utilization"
     description = "See memory use"
@@ -49,13 +49,20 @@
     command = "./mem"
     period = "5m"
 
-[[tasks]]
+[[widgets]]
     id = "cpu-use"
     name = "CPU Utilization"
     description = "See CPU load"
     path = "/home/lucas/workspace/wearable_hud/bar"
     command = "./cpu"
     period = "10s"
+
+[[apps]]
+    id = "notes"
+    name = "Edit notes"
+    description = "See CPU load"
+    path = "/usr/bin"
+    command = "./vim"
 
 #######
 # Layout Definition

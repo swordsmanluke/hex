@@ -134,7 +134,7 @@ impl View for LinearLayout {
         self.children.iter_mut()
     }
 
-    fn replace_content(&mut self, _: String) {
+    fn update_content(&mut self, _: String) {
         // No-op - you can't replace text in a LL.
         // I know this breaks Liscov substitution and I'm not much happier about it.
         return;
@@ -145,17 +145,17 @@ impl View for LinearLayout {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::views::TextView;
-    use crate::hexterm::formatting::{DumbFormatter, Vt100Formatter};
+    use crate::views::Widget;
+    use crate::hexterm::formatting::Vt100Formatter;
 
-    fn fixed_size_text_widget() -> TextView {
-        let mut tw = TextView::new(Dim::Fixed(10), Dim::Fixed(2), Box::new(Vt100Formatter{}), (1, 1));
+    fn fixed_size_text_widget() -> Widget {
+        let mut tw = Widget::new(Dim::Fixed(10), Dim::Fixed(2), Box::new(Vt100Formatter{}), (1, 1));
         tw.text = "This is some raw text\nwith multiple lines\nand then another line.".to_owned();
         tw
     }
 
-    fn wrap_content_text_widget() -> TextView {
-        let mut tw = TextView::new(Dim::WrapContent, Dim::WrapContent, Box::new(Vt100Formatter{}), (1, 1));
+    fn wrap_content_text_widget() -> Widget {
+        let mut tw = Widget::new(Dim::WrapContent, Dim::WrapContent, Box::new(Vt100Formatter{}), (1, 1));
         tw.text = "This is some raw text\nwith multiple lines\nand then another line.".to_owned();
         tw
     }
@@ -228,7 +228,7 @@ mod tests {
         ll.add_child(Box::new(fixed_size_text_widget()));
         ll.inflate(&(100, 100), (1, 1));
 
-        assert_eq!("This is so\nwith multi".to_string(), ll.render());
+        assert_eq!("\u{1b}[1;1HThis is so\u{1b}[2;1Hwith multi".to_string(), ll.render());
     }
 
     #[test]
@@ -238,7 +238,7 @@ mod tests {
         ll.add_child(Box::new(fixed_size_text_widget()));
         ll.inflate(&(100, 100), (1, 1));
 
-        assert_eq!("This is so\nwith multi\nThis is so\nwith multi".to_string(), ll.render());
+        assert_eq!("\u{1b}[1;1HThis is so\u{1b}[2;1Hwith multi\u{1b}[3;1HThis is so\u{1b}[4;1Hwith multi".to_string(), ll.render());
     }
 
     #[test]
@@ -248,8 +248,7 @@ mod tests {
         ll.add_child(Box::new(fixed_size_text_widget()));
         ll.add_child(Box::new(fixed_size_text_widget()));
         ll.inflate(&(100, 100), (1, 1));
-
-        assert_eq!("This is soThis is soThis is so\nwith multiwith multiwith multi".to_string(), ll.render());
+        assert_eq!("\u{1b}[1;1HThis is so\u{1b}[2;1Hwith multi\u{1b}[1;11HThis is so\u{1b}[2;11Hwith multi\u{1b}[1;21HThis is so\u{1b}[2;21Hwith multi".to_string(), ll.render());
     }
 
     #[test]

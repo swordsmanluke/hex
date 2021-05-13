@@ -9,21 +9,21 @@ use std::time::{Duration, SystemTime};
 use log::{info, trace, warn};
 
 use crate::executable_command::ExecutableCommand;
-use crate::tasks::Task;
+use crate::tasks::Widget;
 
-pub struct TaskRunner {
+pub struct WidgetUpdater {
     pub commands: Vec<ExecutableCommand>,
     system_command_sender: Sender<HashMap<String, String>>,
 }
 
-impl TaskRunner {
-    pub fn new(tasks: Vec<Task>,
-               output_tx: Sender<HashMap<String, String>>) -> TaskRunner {
+impl WidgetUpdater {
+    pub fn new(tasks: Vec<Widget>,
+               output_tx: Sender<HashMap<String, String>>) -> WidgetUpdater {
         let commands = tasks.iter().
             map(|t| task_to_command(t)).
             collect();
 
-        TaskRunner { commands, system_command_sender: output_tx }
+        WidgetUpdater { commands, system_command_sender: output_tx }
     }
 
     pub fn start(&mut self) {
@@ -111,7 +111,7 @@ fn exec_command(command: String, working_dir: String) -> Output {
         .expect("failed to execute process")
 }
 
-fn task_to_command(t: &Task) -> ExecutableCommand {
+fn task_to_command(t: &Widget) -> ExecutableCommand {
     ExecutableCommand::new(t.id.clone(),
                            t.command.clone(),
                            t.path.clone(),
