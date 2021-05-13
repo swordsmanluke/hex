@@ -1,7 +1,8 @@
 use std::cmp::min;
-use regex::{Match, Regex};
+use regex::{Match, Regex, Captures};
 use termion::cursor::Goto;
 use log::info;
+use crate::views::CharDims;
 
 /***
 TextFormatter: A trait for classes that convert from a raw string into a formatted one.
@@ -21,7 +22,6 @@ impl TextFormatter for DumbFormatter {
 }
 
 pub struct Vt100Formatter{}
-pub struct InteractiveVt100Formatter{}
 
 fn find_vt100s(s: &str) -> Vec<Match> {
     let vt100_regex = Regex::new(r"((\u001b\[|\u009b)[\u0030-\u003f]*[\u0020-\u002f]*[\u0040-\u007e])+").unwrap();
@@ -36,19 +36,8 @@ impl TextFormatter for Vt100Formatter {
             let (_, sliced) = Vt100Formatter::esc_aware_slice(line, dims.0);
             final_text.push_str(format!("{}{:width$}", Goto(location.0, location.1 + i as u16), sliced, width = dims.0).as_str());
         };
-        return final_text
-    }
-}
 
-impl TextFormatter for InteractiveVt100Formatter {
-    fn format(&self, s: &str, dims: (usize, usize), location: (u16, u16)) -> String {
-        let mut final_text = "".to_string();
-
-        for (i, line) in s.split("\n").take(dims.1).enumerate() {
-            let (_, sliced) = Vt100Formatter::esc_aware_slice(line, dims.0);
-            final_text.push_str(format!("{}{:width$} ", Goto(location.0, location.1 + i as u16), sliced, width = dims.0).as_str());
-        };
-        return final_text
+        return handle_clear(&final_text.as_str(), location, dims)
     }
 }
 
@@ -86,6 +75,24 @@ impl Vt100Formatter {
     }
 }
 
+fn handle_clear(s: &str, location: (u16, u16), dims: CharDims) -> String {
+    // TODO: Move constants somewhere that makes sense
+    let CSI = r"\u{1B}\[";
+    let cls = Regex::new((CSI.to_string()+"2J").as_str()).unwrap();
+
+    cls.replace(s, clear_screen(s, location, dims).as_str() ).into()
+}
+
+fn clear_screen(s: &str, location: (u16, u16), dims: CharDims) -> String{
+    let mut clear = String::new();
+    for y in 0..dims.1 {
+        // Go to each line in the window, then print a bunch of spaces to clear the region.
+        clear.push_str(format!("{}{:width$}", Goto(location.0, location.1 + y as u16), " ", width=dims.0).as_str());
+    }
+
+    clear
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -95,7 +102,19 @@ mod tests {
     fn slicing_vt100_string_works() {
         let fmt = Vt100Formatter{};
         let fmt_str = fmt.format(VT100_TEST, (2, 1), (1, 1));
-        println!("{}", fmt_str);
         assert_eq!("\u{1b}[1;1HT\u{1B}[33mE", fmt_str);
+    }
+
+    #[test]
+    fn clearing_screen_clears_section() {
+        let mstr = handle_clear("\u{1B}[2JThis is new\nmultiline text", (1, 1), (2, 2));
+        assert_eq!(mstr, "\u{1b}[1;1H  \u{1b}[2;1H  This is new\nmultiline text")
+    }
+
+    #[test]
+    fn format_with_cls_works() {
+        let fmt = Vt100Formatter{};
+        let fmt_str = fmt.format("\u{1B}[2JThis is new\nmultiline text", (2, 2), (1, 1));
+        assert_eq!(fmt_str, "\u{1b}[1;1H\u{1b}[1;1H  \u{1b}[2;1H  Th\u{1b}[2;1Hmu")
     }
 }
