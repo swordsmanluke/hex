@@ -1,5 +1,5 @@
 use crate::tasks::Layout;
-use crate::views::{View, Widget, Dim, Orientation, LinearLayout, ViewId};
+use crate::views::{View, Widget, DimConstraint, Orientation, LinearLayout, ViewId, CharDims, TermLocation};
 use std::collections::HashMap;
 use log::{trace, info};
 
@@ -27,7 +27,7 @@ impl Terminal {
     pub fn new(layout: &Layout) -> Terminal {
         let mut windows = WindowMap::new();
         let tasks = TaskStore::new();
-        let root = construct_layout(layout, &mut windows, (1, 1));
+        let root = construct_layout(layout, &mut windows, TermLocation::new(1, 1));
         let stdout = stdout().into_raw_mode().unwrap();
         let formatter = Box::new(Vt100Formatter {});
 
@@ -72,7 +72,7 @@ impl Terminal {
 
     fn update_screen(&mut self) {
         let (width, height) = terminal_size().unwrap();
-        self.root.inflate(&(width as usize, height as usize), (1, 1));
+        self.root.inflate(&CharDims::new(width as usize, height as usize), &TermLocation::new(1, 1));
         writeln!(self.stdout, "{}", self.root.render()).unwrap();
         self.root.wash();
 
@@ -98,7 +98,7 @@ fn set_view_content<'a>(id: &ViewId, view: &'a mut Box<dyn View>, text: &String,
  * Converts Layout to View
  * Pass in a Layout description at the top and it'll build the concrete View objects.
  */
-pub fn construct_layout(layout: &Layout, windows: &mut WindowMap, location: (u16, u16)) -> Box<dyn View> {
+pub fn construct_layout(layout: &Layout, windows: &mut WindowMap, location: TermLocation) -> Box<dyn View> {
     info!("Building {}:{}", layout.kind, layout.task_id.clone().unwrap_or("".to_string()));
 
     let constructed: Box<dyn View> = match layout.kind.as_ref() {
@@ -110,14 +110,14 @@ pub fn construct_layout(layout: &Layout, windows: &mut WindowMap, location: (u16
     return constructed;
 }
 
-fn build_text_view(layout: &Layout, windows: &mut WindowMap, location: (u16, u16)) -> Box<dyn View> {
+fn build_text_view(layout: &Layout, windows: &mut WindowMap, location: TermLocation) -> Box<dyn View> {
     let h_const = match layout.height {
-        Some(h) => Dim::Fixed(h),
-        None => Dim::WrapContent
+        Some(h) => DimConstraint::Fixed(h),
+        None => DimConstraint::WrapContent
     };
     let w_const = match layout.width {
-        Some(w) => Dim::Fixed(w),
-        None => Dim::WrapContent
+        Some(w) => DimConstraint::Fixed(w),
+        None => DimConstraint::WrapContent
     };
 
     let task_id = layout.task_id.clone().unwrap_or(String::from("unknown"));
@@ -128,20 +128,20 @@ fn build_text_view(layout: &Layout, windows: &mut WindowMap, location: (u16, u16
     Box::new(tv)
 }
 
-fn build_linear_layout(layout: &Layout, windows: &mut WindowMap, location: (u16, u16)) -> Box<dyn View> {
+fn build_linear_layout(layout: &Layout, windows: &mut WindowMap, location: TermLocation) -> Box<dyn View> {
     let orientation = match layout.orientation.as_ref().unwrap().as_ref() {
         "vertical" => Orientation::VERTICAL,
         _ => Orientation::HORIZONTAL
     };
 
     let h_const = match layout.height {
-        Some(h) => Dim::Fixed(h),
-        None => Dim::WrapContent
+        Some(h) => DimConstraint::Fixed(h),
+        None => DimConstraint::WrapContent
     };
 
     let w_const = match layout.width {
-        Some(w) => Dim::Fixed(w),
-        None => Dim::WrapContent
+        Some(w) => DimConstraint::Fixed(w),
+        None => DimConstraint::WrapContent
     };
 
     let mut ll: LinearLayout = LinearLayout::new(orientation, w_const, h_const, location);
@@ -150,8 +150,8 @@ fn build_linear_layout(layout: &Layout, windows: &mut WindowMap, location: (u16,
     for child in layout.children.as_ref().unwrap_or(&Vec::new()) {
         let child= construct_layout(&child, windows, next_child_loc);
         next_child_loc = match orientation {
-            Orientation::HORIZONTAL => { (next_child_loc.0, next_child_loc.1 + child.width() as u16) }
-            Orientation::VERTICAL => { (next_child_loc.0 + child.height() as u16, next_child_loc.1) }
+            Orientation::HORIZONTAL => { TermLocation::new(next_child_loc.x + child.width() as u16, next_child_loc.y) }
+            Orientation::VERTICAL => { TermLocation::new(next_child_loc.x, next_child_loc.y + child.height() as u16) }
         };
         ll.add_child(child);
     }

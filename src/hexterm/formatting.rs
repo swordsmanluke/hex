@@ -37,7 +37,7 @@ impl TextFormatter for Vt100Formatter {
             final_text.push_str(format!("{}{:width$}", Goto(location.0, location.1 + i as u16), sliced, width = dims.0).as_str());
         };
 
-        return handle_clear(&final_text.as_str(), location, dims)
+        return handle_clear(&final_text.as_str(), location, CharDims::new(dims.0, dims.1))
     }
 }
 
@@ -85,9 +85,9 @@ fn handle_clear(s: &str, location: (u16, u16), dims: CharDims) -> String {
 
 fn clear_screen(s: &str, location: (u16, u16), dims: CharDims) -> String{
     let mut clear = String::new();
-    for y in 0..dims.1 {
+    for y in 0..dims.height {
         // Go to each line in the window, then print a bunch of spaces to clear the region.
-        clear.push_str(format!("{}{:width$}", Goto(location.0, location.1 + y as u16), " ", width=dims.0).as_str());
+        clear.push_str(format!("{}{:width$}", Goto(location.0, location.1 + y as u16), " ", width=dims.width).as_str());
     }
 
     clear
@@ -107,7 +107,7 @@ mod tests {
 
     #[test]
     fn clearing_screen_clears_section() {
-        let mstr = handle_clear("\u{1B}[2JThis is new\nmultiline text", (1, 1), (2, 2));
+        let mstr = handle_clear("\u{1B}[2JThis is new\nmultiline text", (1, 1), CharDims::new(2, 2));
         assert_eq!(mstr, "\u{1b}[1;1H  \u{1b}[2;1H  This is new\nmultiline text")
     }
 
